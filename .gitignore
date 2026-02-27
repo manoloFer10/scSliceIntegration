@@ -1,0 +1,4 @@
+*.md
+Cell counting/
+__pycache__/
+.vscode/
