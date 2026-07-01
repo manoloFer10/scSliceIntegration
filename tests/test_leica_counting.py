@@ -13,6 +13,7 @@ import pytest
 
 sitk = pytest.importorskip("SimpleITK")
 
+from sc3d.core.segment import remove_watermark
 from sc3d.preprocess.leica import SeriesRef, convert_series, iter_series, load_channel_volume
 
 
@@ -59,7 +60,7 @@ def test_blob_count_matches_k(tmp_path: Path) -> None:
 
     ref = SeriesRef(tissue="TST", day="Day_1", series="Series1", series_dir=series_dir)
     out_root = tmp_path / "niftis"
-    convert_series(ref, out_root, expected_z=20, threshold=100, min_volume_um3=1.0, bg_radius=5)
+    convert_series(ref, out_root, expected_z=20, threshold=100, min_volume_um3=1.0, denoise_radius=0)
 
     seg_path = out_root / "TST" / "Day_1" / "Series1" / "Series1_segmentation.nii.gz"
     assert seg_path.exists(), "segmentation file not written"
@@ -76,7 +77,7 @@ def test_spacing_set_correctly(tmp_path: Path) -> None:
 
     ref = SeriesRef(tissue="TST", day="Day_1", series="Series1", series_dir=series_dir)
     out_root = tmp_path / "niftis"
-    convert_series(ref, out_root, expected_z=20, threshold=100, min_volume_um3=1.0, bg_radius=5)
+    convert_series(ref, out_root, expected_z=20, threshold=100, min_volume_um3=1.0, denoise_radius=0)
 
     fluor_path = out_root / "TST" / "Day_1" / "Series1" / "Series1_fluor.nii.gz"
     fluor = sitk.ReadImage(str(fluor_path))
@@ -92,7 +93,7 @@ def test_fluor_max_positive(tmp_path: Path) -> None:
 
     ref = SeriesRef(tissue="TST", day="Day_1", series="Series1", series_dir=series_dir)
     out_root = tmp_path / "niftis"
-    convert_series(ref, out_root, expected_z=20, threshold=100, min_volume_um3=1.0, bg_radius=5)
+    convert_series(ref, out_root, expected_z=20, threshold=100, min_volume_um3=1.0, denoise_radius=0)
 
     fluor_path = out_root / "TST" / "Day_1" / "Series1" / "Series1_fluor.nii.gz"
     fluor = sitk.ReadImage(str(fluor_path))
@@ -137,6 +138,32 @@ def test_load_channel_volume_extracts_green(tmp_path: Path) -> None:
     arr = sitk.GetArrayFromImage(img)
     assert arr.max() == green_val
     assert arr.shape == z_shape
+
+
+def test_remove_watermark_zeros_persistent_saturation() -> None:
+    """A saturated column present on most z-slices is zeroed; a real cell is kept."""
+    Z, Y, X = 100, 64, 64
+    vol = np.zeros((Z, Y, X), dtype=np.uint8)
+    # Burned-in watermark: a saturated 3x3 patch on every slice (z-invariant).
+    vol[:, 2:5, 58:61] = 255
+    # A real cell: bright but confined to a few slices, away from the watermark.
+    vol[48:53, 30:35, 30:35] = 200
+
+    img = sitk.GetImageFromArray(vol)
+    img.SetSpacing((1.1353, 1.1353, 5.0))
+    cleaned = sitk.GetArrayFromImage(remove_watermark(img, dilate_radius=0))
+
+    assert cleaned[:, 2:5, 58:61].max() == 0, "watermark column not zeroed"
+    assert cleaned[48:53, 30:35, 30:35].max() == 200, "real cell wrongly removed"
+
+
+def test_remove_watermark_noop_without_watermark() -> None:
+    """A volume with no persistent saturation is returned unchanged."""
+    vol = np.zeros((20, 32, 32), dtype=np.uint8)
+    vol[8:12, 14:18, 14:18] = 180  # a dim-ish blob, never saturated
+    img = sitk.GetImageFromArray(vol)
+    out = sitk.GetArrayFromImage(remove_watermark(img))
+    assert np.array_equal(out, vol)
 
 
 def test_z_mismatch_raises(tmp_path: Path) -> None:

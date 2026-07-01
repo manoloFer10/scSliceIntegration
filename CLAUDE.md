@@ -13,6 +13,11 @@ file) has changed, explicitly confirm with the user before staging/committing �
 summarize what changed and ask whether to commit. Do not commit or push
 automatically, even after finishing a task; wait for the user's go-ahead.
 
+**Generated images go in `miscelaneous/`.** Write any generated images — QC
+overlays, MIPs, summary figures, diagnostic plots — into the `miscelaneous/`
+folder at the repo root. It is `.gitignore`d (regenerable, not source), so nothing
+there is committed.
+
 ## What this is
 
 `sc3d` is a 3D per-object metrics pipeline. It walks a tree of segmented microscopy

@@ -24,13 +24,14 @@ from xml.etree import ElementTree
 import numpy as np
 import SimpleITK as sitk
 
-from sc3d.core.segment import segment_fluorescence
+from sc3d import config
+from sc3d.core.segment import remove_watermark, segment_fluorescence
 
 logger = logging.getLogger(__name__)
 
 # Default spacing confirmed from Leica metadata (DimensionDescription Voxel values).
 # The TIF-embedded 0.35278 µm is a bogus 1/72-inch screen default — never use it.
-_DEFAULT_SPACING = (1.1353, 1.1353, 5.0)  # (sx, sy, sz) in µm
+_DEFAULT_SPACING = config.LEICA_SPACING_UM  # (sx, sy, sz) in µm
 
 
 @dataclass(frozen=True)
@@ -51,8 +52,8 @@ def iter_series(data_root: Path) -> Iterator[SeriesRef]:
               <Series>/
                 *_ch00.tif   (required; absence → folder skipped)
     """
-    tissue_re = re.compile(r"Analysis_(\w+)\s")
-    day_re = re.compile(r"Analysis_Day\s+(\d+)")
+    tissue_re = re.compile(config.LEICA_TISSUE_RE)
+    day_re = re.compile(config.LEICA_DAY_RE)
 
     for tissue_dir in sorted(data_root.iterdir()):
         if not tissue_dir.is_dir():
@@ -113,7 +114,7 @@ def resolve_spacing(series_dir: Path) -> tuple[float, float, float]:
 
 def load_channel_volume(
     series_dir: Path,
-    channel: str = "ch00",
+    channel: str = config.COUNT_CHANNEL,
     expected_z: int | None = 100,
 ) -> sitk.Image:
     """Load all z-slices for *channel* into a (Z, Y, X) uint8 SimpleITK image.
@@ -157,8 +158,8 @@ def load_channel_volume(
 def convert_series(
     ref: SeriesRef,
     out_root: Path,
-    channel: str = "ch00",
-    raw_channel: str = "ch01",
+    channel: str = config.COUNT_CHANNEL,
+    raw_channel: str = config.RAW_CHANNEL,
     expected_z: int | None = 100,
     **seg_kwargs,
 ) -> None:
@@ -166,12 +167,18 @@ def convert_series(
 
     Output directory: out_root/<tissue>/<day>/<series>/
     Output files:
-        <series>_fluor.nii.gz          — GFP intensity (uint8, green channel of ch00)
+        <series>_fluor.nii.gz          — GFP intensity (uint8, green channel of ch00),
+                                         watermark-cleaned
         <series>_segmentation.nii.gz   — binary foreground mask (uint8)
         <series>_raw.nii.gz            — brightfield (uint8, green channel of ch01)
     The raw file is omitted with a warning if raw_channel TIFs are absent.
+
+    The burned-in Leica scale-bar watermark is removed from the GFP volume before
+    both writing the fluor NIfTI and segmenting, so it corrupts neither the counts
+    nor the downstream intensity metrics. A volume with no watermark is unaffected.
     """
     fluor = load_channel_volume(ref.series_dir, channel=channel, expected_z=expected_z)
+    fluor = remove_watermark(fluor)
     seg = segment_fluorescence(fluor, **seg_kwargs)
 
     out_dir = out_root / ref.tissue / ref.day / ref.series
@@ -192,7 +199,7 @@ def convert_series(
 def convert(
     data_root: Path,
     out_root: Path,
-    channel: str = "ch00",
+    channel: str = config.COUNT_CHANNEL,
     **seg_kwargs,
 ) -> None:
     """Convert all series under data_root, skipping failures with a logged warning."""

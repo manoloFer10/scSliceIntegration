@@ -18,7 +18,7 @@ def label_and_filter(stack: Stack, min_voxels: int) -> tuple[Stack, dict[int, in
     # Treat any non-zero as foreground; CC then re-labels.
     binary = sitk.BinaryThreshold(seg, lowerThreshold=1, upperThreshold=2**31 - 1,
                                    insideValue=1, outsideValue=0)
-    cc = sitk.ConnectedComponent(binary)
+    cc = sitk.ConnectedComponent(binary, True)  # 26-connectivity, matching segment_fluorescence
     relabel = sitk.RelabelComponent(cc, minimumObjectSize=min_voxels, sortByObjectSize=True)
 
     shape_stats = sitk.LabelShapeStatisticsImageFilter()
