@@ -3,6 +3,9 @@
 /NIfTIs/
 /NIfTIs_leica/
 /data/
+
+# Scratch/generated images (overlays, QC figures) — regenerable, not source.
+/miscelaneous/
 *.nii
 *.nii.gz
 *.tif
@@ -30,5 +33,6 @@ env/
 .vscode/
 
 # --- Claude Code local (machine-specific) ---
-.claude/settings.local.json
+.claude/
 plans/
+CLAUDE.md
