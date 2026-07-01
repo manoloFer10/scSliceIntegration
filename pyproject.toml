@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sc3d"
+version = "0.1.0"
+description = "3D per-object metrics pipeline for segmented NIfTI stacks."
+requires-python = ">=3.10"
+dependencies = [
+    "SimpleITK>=2.3",
+    "numpy>=1.24",
+    "pandas>=2.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.scripts]
+sc3d = "sc3d.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

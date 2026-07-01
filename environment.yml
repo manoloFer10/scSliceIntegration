@@ -1,0 +1,11 @@
+name: sc3d
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - numpy
+  - pandas
+  - matplotlib
+  - simpleitk
+  - pytest
+  - pip

@@ -1,0 +1,34 @@
+# --- Large data (microscopy stacks, archives, pipeline outputs) ---
+# These are multi-GB binary trees, not source. Regenerable / stored elsewhere.
+/NIfTIs/
+/NIfTIs_leica/
+/data/
+*.nii
+*.nii.gz
+*.tif
+*.tiff
+*.rar
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+
+# --- Environments ---
+.venv/
+venv/
+env/
+
+# --- Editor / OS ---
+.DS_Store
+.idea/
+.vscode/
+
+# --- Claude Code local (machine-specific) ---
+.claude/settings.local.json
+plans/
