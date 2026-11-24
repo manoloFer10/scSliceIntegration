@@ -5,6 +5,7 @@
 /NIfTIs_leica_masked/
 /NIfTIs_04-07/
 /data/
+/Cell counting/
 
 # Scratch/generated images (overlays, QC figures) — regenerable, not source.
 /miscelaneous/
