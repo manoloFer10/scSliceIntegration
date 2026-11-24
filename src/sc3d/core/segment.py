@@ -76,6 +76,7 @@ def segment_fluorescence(
     *,
     threshold: float | None = config.COUNT_THRESHOLD,
     min_volume_um3: float = config.COUNT_MIN_VOLUME_UM3,
+    min_voxels: int | None = None,
     denoise_radius: int = config.COUNT_DENOISE_RADIUS,
     fully_connected: bool = config.COUNT_FULLY_CONNECTED,
 ) -> sitk.Image:
@@ -97,8 +98,11 @@ def segment_fluorescence(
     point sets the cell counts (the deliverable) and is provisional pending visual
     confirmation on the reference series.
 
-    **Size filter (`min_volume_um3`).** Converted to voxels via the image spacing; the
-    authoritative noise-rejection knob. 300 µm³ ≈ 46 voxels at 1.1353×1.1353×5 µm.
+    **Size filter (`min_voxels` / `min_volume_um3`).** The authoritative noise-rejection
+    knob. When `min_voxels` is given it is used directly (a spacing-independent voxel
+    count); otherwise `min_volume_um3` is converted to voxels via the image spacing
+    (300 µm³ ≈ 46 voxels at 1.1353×1.1353×5 µm). Objects smaller than the resulting
+    voxel count are dropped.
 
     **Background subtraction (`bg_radius`).** Optional anisotropic white top-hat (large
     XY, thin Z). Off by default: on the confirmed Leica data it is ~inert (cells are
@@ -113,9 +117,12 @@ def segment_fluorescence(
     - `min_volume_um3` relies on correct image spacing; wrong spacing → wrong filter.
     - Thresholding assumes an 8-bit (0–255) intensity range.
     """
-    spacing = fluor.GetSpacing()  # (sx, sy, sz) in µm
-    voxel_um3 = math.prod(spacing)
-    min_voxels = max(1, round(min_volume_um3 / voxel_um3))
+    if min_voxels is not None:
+        min_voxels = max(1, int(min_voxels))
+    else:
+        spacing = fluor.GetSpacing()  # (sx, sy, sz) in µm
+        voxel_um3 = math.prod(spacing)
+        min_voxels = max(1, round(min_volume_um3 / voxel_um3))
 
     work = fluor
 

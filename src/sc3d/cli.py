@@ -30,7 +30,12 @@ def _add_seg_opts(p: argparse.ArgumentParser) -> None:
                    help=f"Absolute GFP intensity floor (default: {config.COUNT_THRESHOLD}).")
     p.add_argument("--min-volume-um3", type=float, default=config.COUNT_MIN_VOLUME_UM3,
                    dest="min_volume_um3",
-                   help=f"Minimum object volume in µm³ (default: {config.COUNT_MIN_VOLUME_UM3}).")
+                   help=f"Minimum object volume in µm³ (default: {config.COUNT_MIN_VOLUME_UM3}); "
+                        "only used when --min-voxels is 0/negative.")
+    p.add_argument("--min-voxels", type=int, default=config.COUNT_MIN_VOXELS,
+                   dest="min_voxels",
+                   help=f"Minimum object size as a direct voxel count (default: {config.COUNT_MIN_VOXELS}); "
+                        "takes precedence over --min-volume-um3. Pass 0 to use the µm³ filter instead.")
     p.add_argument("--denoise-radius", type=int, default=config.COUNT_DENOISE_RADIUS,
                    dest="denoise_radius",
                    help=f"XY median denoise radius in voxels (default: {config.COUNT_DENOISE_RADIUS}).")
@@ -40,9 +45,12 @@ def _add_seg_opts(p: argparse.ArgumentParser) -> None:
 
 
 def _seg_kwargs(args: argparse.Namespace) -> dict:
+    # min_voxels > 0 wins (direct voxel filter); 0/negative falls back to the µm³ path.
+    min_voxels = args.min_voxels if args.min_voxels and args.min_voxels > 0 else None
     return dict(
         threshold=args.threshold,
         min_volume_um3=args.min_volume_um3,
+        min_voxels=min_voxels,
         denoise_radius=args.denoise_radius,
         fully_connected=args.fully_connected,
     )

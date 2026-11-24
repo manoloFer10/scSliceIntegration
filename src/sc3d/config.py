@@ -27,9 +27,15 @@ RAW_CHANNEL = "ch01"     # uniform brightfield, not countable (kept as *_raw)
 # Real physical spacing (µm); the TIF-embedded 0.35278 µm is a bogus 1/72-inch default.
 LEICA_SPACING_UM = (1.1353, 1.1353, 5.0)  # (sx, sy, sz)
 COUNT_THRESHOLD = 20.0        # absolute GFP intensity floor (just above the noise p99)
-COUNT_MIN_VOLUME_UM3 = 300.0  # authoritative object-size filter (~46 vox at r1 spacing)
+COUNT_MIN_VOLUME_UM3 = 300.0  # object-size filter in physical units (~46 vox at r1 spacing).
+                              # Used only when COUNT_MIN_VOXELS is None (spacing-derived path).
+COUNT_MIN_VOXELS = 60         # authoritative object-size filter as a DIRECT voxel count
+                              # (spacing-independent). Takes precedence over COUNT_MIN_VOLUME_UM3.
 COUNT_DENOISE_RADIUS = 1      # XY(+Z=1) median radius that creates the count plateau
 COUNT_FULLY_CONNECTED = True  # 26-connectivity, matching core/labeling
+COUNT_IMAGE_EXTS = (".tif", ".tiff", ".jpg", ".jpeg")  # per-slice image formats the converter reads
 LEICA_OUT_DIRNAME = "NIfTIs_leica"
-LEICA_TISSUE_RE = r"Analysis_(\w+)\s"     # top folder → tissue (COR/WER)
-LEICA_DAY_RE = r"Analysis_Day\s+(\d+)"    # → Day_{n}
+# Tissue folder: "Analysis_COR (Cortex)", "Analysis_WER (Epidermis)", "Analysis_Col0" → COR/WER/Col0.
+LEICA_TISSUE_RE = r"Analysis_(\w+)"
+# Day folder: matches both "Analysis_Day 3" and the compact "Analysis_D3" → Day_{n}.
+LEICA_DAY_RE = r"Analysis_D(?:ay)?\s*(\d+)"

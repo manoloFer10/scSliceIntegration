@@ -74,7 +74,7 @@ def iter_series(data_root: Path) -> Iterator[SeriesRef]:
             for series_dir in sorted(day_dir.iterdir()):
                 if not series_dir.is_dir():
                     continue
-                if not list(series_dir.glob("*_ch00.tif")):
+                if not _has_channel_slices(series_dir, config.COUNT_CHANNEL):
                     continue
                 yield SeriesRef(
                     tissue=tissue,
@@ -112,6 +112,20 @@ def resolve_spacing(series_dir: Path) -> tuple[float, float, float]:
     return _DEFAULT_SPACING
 
 
+_SLICE_EXT_RE = "|".join(re.escape(e.lstrip(".")) for e in config.COUNT_IMAGE_EXTS)
+
+
+def _channel_slice_re(channel: str) -> re.Pattern:
+    """Regex matching a per-slice image file `..._z{NN}_{channel}.{ext}` for any known ext."""
+    return re.compile(rf"_z(\d+)_{re.escape(channel)}\.(?:{_SLICE_EXT_RE})$", re.IGNORECASE)
+
+
+def _has_channel_slices(series_dir: Path, channel: str) -> bool:
+    """True if the folder holds at least one per-slice image for *channel* (any format)."""
+    pattern = _channel_slice_re(channel)
+    return any(pattern.search(p.name) for p in series_dir.iterdir() if p.is_file())
+
+
 def load_channel_volume(
     series_dir: Path,
     channel: str = config.COUNT_CHANNEL,
@@ -119,32 +133,34 @@ def load_channel_volume(
 ) -> sitk.Image:
     """Load all z-slices for *channel* into a (Z, Y, X) uint8 SimpleITK image.
 
-    TIFs are RGB 8-bit; green (GFP) signal lives in RGB index 1.
-    Slices are sorted by the integer extracted from _z{NN}_{channel}.tif.
-    Spacing is set by resolve_spacing (correct physical µm, not TIF default).
+    Slices are RGB 8-bit; green (GFP) signal lives in RGB index 1. Per-slice files
+    may be TIF or JPG (any `config.COUNT_IMAGE_EXTS`) — both decode to the same RGB
+    array, so a series stored as lossy JPG loads through the identical path. Slices
+    are sorted by the integer in `_z{NN}_{channel}.{ext}`. Spacing is set by
+    resolve_spacing (correct physical µm, not the TIF default).
 
     Raises ValueError if expected_z is set and the found count does not match.
     """
-    pattern = re.compile(rf"_z(\d+)_{re.escape(channel)}\.tif$")
-    tif_files: list[tuple[int, Path]] = []
+    pattern = _channel_slice_re(channel)
+    slice_files: list[tuple[int, Path]] = []
     for p in series_dir.iterdir():
         m = pattern.search(p.name)
         if m:
-            tif_files.append((int(m.group(1)), p))
+            slice_files.append((int(m.group(1)), p))
 
-    if not tif_files:
-        raise FileNotFoundError(f"No *_{channel}.tif slices found in {series_dir}")
+    if not slice_files:
+        raise FileNotFoundError(f"No *_{channel}.{{{_SLICE_EXT_RE}}} slices found in {series_dir}")
 
-    tif_files.sort(key=lambda t: t[0])
+    slice_files.sort(key=lambda t: t[0])
 
-    if expected_z is not None and len(tif_files) != expected_z:
+    if expected_z is not None and len(slice_files) != expected_z:
         raise ValueError(
             f"Expected {expected_z} z-slices for {channel} in {series_dir.name}, "
-            f"found {len(tif_files)}"
+            f"found {len(slice_files)}"
         )
 
     slices: list[np.ndarray] = []
-    for _, path in tif_files:
+    for _, path in slice_files:
         rgb = sitk.GetArrayFromImage(sitk.ReadImage(str(path)))  # (Y, X, 3)
         slices.append(rgb[..., 1])  # green channel
 

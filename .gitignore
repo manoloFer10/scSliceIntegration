@@ -2,6 +2,8 @@
 # These are multi-GB binary trees, not source. Regenerable / stored elsewhere.
 /NIfTIs/
 /NIfTIs_leica/
+/NIfTIs_leica_masked/
+/NIfTIs_04-07/
 /data/
 
 # Scratch/generated images (overlays, QC figures) — regenerable, not source.
